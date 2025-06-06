@@ -80,7 +80,7 @@
                         class="form-control" 
                         placeholder="Contoh: menyelesaikan" 
                         required 
-                        pattern="^[a-zA-Z]+$"
+                        pattern="^[a-zA-Z\-]+$"
                         title="Masukkan hanya satu kata, huruf saja tanpa angka atau spasi"
                         value="{{ isset($root) ? '' : old('word', $original ?? '') }}">
                 </div>

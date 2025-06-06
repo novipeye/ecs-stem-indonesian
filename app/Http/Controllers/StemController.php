@@ -19,7 +19,7 @@ class StemController extends Controller
                 'required',
                 'string',
                 'min:4',
-                'regex:/^[a-zA-Z]+$/', // single word, alphabetic only
+                'regex:/^[a-zA-Z\-]+$/' // single word, alphabetic only
             ],
         ], [
             'min' => 'Minimal word length is four characters.',
