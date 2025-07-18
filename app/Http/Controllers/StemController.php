@@ -19,15 +19,13 @@ class StemController extends Controller
                 'required',
                 'string',
                 'min:4',
-                'regex:/^[a-zA-Z\-]+$/' // single word, alphabetic only
+                'regex:/^[a-zA-Z\-]+$/'
             ],
         ], [
             'min' => 'Minimal word length is four characters.',
             'regex' => 'Only one word with alphabetic characters is allowed.',
         ]);
-
         $result = $stemmerService->stem($request->input('word'));
-
         return view('stem.form', [
             'original' => $request->input('word'),
             'root' => $result['root'],

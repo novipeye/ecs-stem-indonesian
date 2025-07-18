@@ -5,7 +5,7 @@ namespace App\Services;
 class StemmerService
 {
     protected array $corpus = [];
-    
+
     private array $manualExceptions = [];
 
     public function __construct()
@@ -35,7 +35,6 @@ class StemmerService
         $this->loadManualExceptions();
         $originalWord = strtolower($word);
 
-        // Pengecekan ke dalam file eksepsi
         if (isset($this->manualExceptions[$originalWord])) {
             return [
                 'root' => $this->manualExceptions[$originalWord],
@@ -53,7 +52,14 @@ class StemmerService
             ];
         }        
         
-        // $word = $this->stemWithReduplication($word);
+        // Penanganan repetitive word seperti: berlari-larian
+        $word = $this->stemWithReduplication($word);
+        if ($this->isInCorpus($word)) {
+            return [
+                'root' => $word,
+                'status' => 'Kata merupakan repetitive word, ditangani secara khusus'
+            ];
+        } 
 
         // 1. Hapus Possesive Pronoun Particle (kah, lah, tah, pun)
         $word = $this->removeParticleSuffix($word);
@@ -99,7 +105,7 @@ class StemmerService
         if ($this->isInCorpus($word)) {
             return [
                 'root' => $word,
-                'status' => 'Kata ditemukan setelah remove prefix Ke (tahap 4)'
+                'status' => 'Kata ditemukan setelah remove prefix Pe (tahap 4)'
             ];
         }
 
@@ -109,7 +115,7 @@ class StemmerService
         if ($this->isInCorpus($word)) {
             return [
                 'root' => $word,
-                'status' => 'Kata ditemukan setelah remove prefix Ke (tahap 4)'
+                'status' => 'Kata ditemukan setelah remove prefix Me (tahap 4)'
             ];
         }
 
@@ -128,6 +134,15 @@ class StemmerService
                 ];
             }
         }
+
+        if($word = $originalWord){
+            $word = $this->removeInfix($word);
+            return [
+                'root' => $word,
+                'status' => 'Kata sisipan, ditangani secara khusus'
+            ];
+        }
+
         return [
             'root' => $word,
             'status' => 'Tidak ditemukan di corpus',
@@ -147,23 +162,6 @@ class StemmerService
         return $original;
     }
 
-    private function removePossessivePronounSuffixOld(string $word): string
-    {
-        $original = $word;
-
-        if (str_ends_with($word, 'ku')) {
-            $word = preg_replace('/ku$/', '', $word);
-        } elseif (str_ends_with($word, 'mu')) {
-            $word = preg_replace('/mu$/', '', $word);
-        } elseif (str_ends_with($word, 'nya')) {
-            // Jika kata diawali 'ber', jangan hapus 'nya', eg: bertanya
-            if (str_starts_with($word, 'ber')) {
-                return $word;
-            }
-            $word = preg_replace('/nya$/', '', $word);
-        }
-        return $word ?: $original;
-    }
     private function removePossessivePronounSuffix(string $word): string
     {
         $original = $word;
@@ -187,9 +185,9 @@ class StemmerService
         // Rule: -i
         if (str_ends_with($word, 'i')) {
             if (
-                (str_starts_with($word, 'men') && substr($word, 3, 1) !== 'g') ||
+                (str_starts_with($word, 'men') && substr($word, 3, 1) !== 'g') || str_starts_with($word, 'meng') || str_starts_with($word, 'mem') || 
                 str_starts_with($word, 'ber') 
-                || str_starts_with($word, 'di')
+                || str_starts_with($word, 'di') || str_starts_with($word, 'pe') || str_starts_with($word, 'pem')
             ) {
                 return $word;
             }
@@ -201,11 +199,16 @@ class StemmerService
             return substr($word, 0, -3);
         }
 
+        // Rule: -an, with ber- prefix
+        if (str_starts_with($word, 'ber') && str_ends_with($word, 'an')) {
+            return $word;
+        }
+
         // Rule: -an
         if (str_ends_with($word, 'an')) {
             return substr($word, 0, -2);
         }
-
+        
         return $original;
     }
 
@@ -270,7 +273,6 @@ class StemmerService
                 return preg_replace('/^te/', '', $word);
             }
         }
-
         return $original;
     }
 
@@ -348,6 +350,10 @@ class StemmerService
             }
         }
 
+        if (str_starts_with($word, 'pe')) {
+            return preg_replace('/^pe/', '', $word);
+        }
+
         return $original;
     }
 
@@ -362,13 +368,16 @@ class StemmerService
                 return preg_replace('/^per/', '', $word);
             }
         }
-
         return $original;
     }
 
     private function removeMePrefix(string $word): string
     {
         $original = $word;
+
+        // if (str_starts_with($word, 'memper')) {
+        //     return preg_replace('/^memper/', '', $word);
+        // }
 
         if (str_starts_with($word, 'mem')) {
             $fourthChar = $word[3] ?? '';
@@ -388,7 +397,7 @@ class StemmerService
 
         if (str_starts_with($word, 'meng')) {
             $fifthChar = $word[4] ?? '';
-            if (in_array($fifthChar, ['g', 'h', 'q', 'u', 'i'])) {
+            if (in_array($fifthChar, ['g', 'h', 'q', 'u', 'i', 'k'])) {
                 // 'meng' dihapus
                 return preg_replace('/^meng/', '', $word);
             } elseif (in_array($fifthChar, ['o', 'e'])) {
@@ -418,23 +427,33 @@ class StemmerService
                 return preg_replace('/^me/', '', $word);
             }
         }
-
+        
         return $original;
     }
 
     // Acommodate repetitive words, eg: berlari-larian
     public function stemWithReduplication(string $kata): string
     {
-        // Deteksi kata ulang dengan tanda "-"
         if (strpos($kata, '-') !== false) {
             $parts = explode('-', $kata);
-            $stemmedParts = array_map(fn($word) => $this->stem($word), $parts);
+            $roots = [];
 
-            // Ambil bentuk unik, misalnya ['lari', 'lari'] → ['lari']
-            $uniqueStems = array_unique($stemmedParts);
+            foreach ($parts as $part) {
+                $stemResult = $this->stem($part); // returns ['root' => ..., 'status' => ...]
+                $roots[] = $stemResult['root'];
+            }
 
-            // Bisa pilih return satu kata saja atau semua bentuk akar
-            return implode($uniqueStems[0]); // atau return $uniqueStems[0];
+            $uniqueRoots = array_unique($roots);
+
+            // Return the first stemmed form that exists in the corpus
+            foreach ($uniqueRoots as $root) {
+                if ($this->isInCorpus($root)) {
+                    return $root;
+                }
+            }
+
+            // Fallback: return the first unique root
+            return $uniqueRoots[0];
         }
         return $kata;
     }
@@ -461,8 +480,26 @@ class StemmerService
                 }
             }
         }
-
         return $original;
+    }
+
+    function removeInfix(string $word): string
+    {
+        // Define infixes
+        $infixes = ['el', 'er', 'em'];
+
+        // Check if word length is at least 4 (to safely check position 2-3)
+        if (strlen($word) >= 4) {
+            $infixCandidate = substr($word, 1, 2); // position 2nd and 3rd (0-based index)
+
+            if (in_array($infixCandidate, $infixes)) {
+                // Remove the infix (characters at position 1 and 2)
+                return substr($word, 0, 1) . substr($word, 3);
+            }
+        }
+
+        // Return original word if no infix match
+        return $word;
     }
 
     protected function isInCorpus($word)

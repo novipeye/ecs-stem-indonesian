@@ -1,133 +1,59 @@
-{{-- <!DOCTYPE html>
-<html>
-<head>
-    <title>CS Stemmer</title>
-    <script>
-        function validateForm(event) {
-            const wordInput = document.querySelector('input[name="word"]');
-            const word = wordInput.value.trim();
-            const errorDiv = document.getElementById('error');
-
-            // Clear previous error
-            errorDiv.textContent = '';
-
-            // Regex: reject numbers, multiple words, or special characters
-            const invalidPattern = /[^a-zA-Z]/;
-
-            if (word.length < 4) {
-                errorDiv.textContent = "Minimal word length is four characters.";
-                event.preventDefault();
-                return false;
-            }
-
-            if (invalidPattern.test(word)) {
-                errorDiv.textContent = "Only one word with alphabetic characters is allowed.";
-                event.preventDefault();
-                return false;
-            }
-
-            return true;
-        }
-    </script>
-</head>
-<body>
-    <h1>Confix Stripping Stemmer</h1>
-
-    <div id="error" style="color: red;">
-        @error('word') {{ $message }} @enderror
-    </div>
-
-    <form method="POST" action="{{ route('stem.process') }}" onsubmit="return validateForm(event)">
-        @csrf
-        <input type="text" name="word" placeholder="Enter a word" value="{{ old('word') }}">
-        <button type="submit">Stem</button>
-    </form>
-
-    @if (isset($root))
-        <p><strong>Original:</strong> {{ $original }}</p>
-        <p><strong>Root:</strong> {{ $root }}</p>
-        <p style="color: green;"><strong>Status:</strong> {{ $status }}</p>
-    @endif
-</body>
-</html> --}}
-
 @extends('layouts.app')
 
+@section('title', 'Kata Tunggal')
+
 @section('content')
-<div class="d-flex justify-content-center align-items-center vh-100 bg-light">
-    <div class="card shadow-sm" style="width: 35rem;">
-        <div class="card-header text-center text-light" style="background-color: #556B2F;">
-            <h2>Cari Kata Dasar</h2>
-        </div>
-        <div class="card-body">
+<div class="d-flex justify-content-center align-items-center" style="min-height: 50vh;">
+    <div class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-12 col-sm-10 col-md-8 col-lg-6">
+                <div class="card shadow-sm rounded-4">
+                    <div class="card-body p-4">
+                        <h4 class="mb-4 text-center" style="color: #254D70;">Cari Kata Dasar</h4>
 
-            @if ($errors->any())
-                <div class="alert alert-danger">
-                    <ul class="mb-0">
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
+                        @if ($errors->any())
+                            <div class="alert alert-danger">
+                                <ul class="mb-0 small">
+                                    @foreach ($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
 
-            <form method="POST" action="{{ route('stem.process') }}">
-                @csrf
-                <div class="mb-3">
-                    <input 
-                        type="text" 
-                        name="word" 
-                        class="form-control" 
-                        placeholder="Contoh: menyelesaikan" 
-                        required 
-                        pattern="^[a-zA-Z\-]+$"
-                        title="Masukkan hanya satu kata, huruf saja tanpa angka atau spasi"
-                        value="{{ isset($root) ? '' : old('word', $original ?? '') }}">
-                </div>
-                <div class="text-center">
-                    <button type="submit" class="btn text-white w-25" style="background-color: #a89e2d;">Proses</button>
-                </div>                
-            </form>
+                        {{-- Form --}}
+                        <form method="POST" action="{{ route('stem.process') }}">
+                            @csrf
+                            <div class="mb-3">
+                                <label for="word" class="form-label">Masukkan Kata</label>
+                                <input type="text" name="word" id="word" class="form-control"
+                                    placeholder="misal: menyelesaikan"
+                                    pattern="^[a-zA-Z]+$" required
+                                    value="{{ isset($root) ? '' : old('word') }}">
+                            </div>
 
-            @isset($root)
-                <hr>
-                <div class="mt-3 text-center">
-                    <p class="mb-1">Kata Kunci:</p>
-                    <h5 class="text-success">{{ $original }}</h5>
+                            <div class="row">
+                                <div class="d-flex flex-column flex-md-row justify-content-center gap-3">
+                                <button type="submit" class="btn btn-primary">Proses</button>
+                                <button type="reset" class="btn btn-outline-secondary">Reset</button>
+                            </div>
+
+                            </div>
+                        </form>
+
+                        {{-- Result --}}
+                        @isset($root)
+                            <hr>
+                            <div class="mt-3 small">
+                                <p><strong>Kata Masukkan:</strong> {{ $original }}</p>
+                                <p><strong>Kata Dasar:</strong> <span style="color: #954C2E;">{{ $root }}</span></p>
+                                <p><strong>Status:</strong> {{ $status }}</p>
+                            </div>
+                        @endisset
+                    </div>
                 </div>
-                <div class="mt-3 text-center">
-                    <p class="mb-1">Kata Asal:</p>
-                    <h5 class="text-success">{{ $root }}</h5>
-                </div>
-                <div class="mt-3 text-center">
-                    <p class="mb-1">Pesan</p>
-                    <h5 class="text-success">{{ $status }}</h5>
-                </div>
-            @endisset
+            </div>
         </div>
     </div>
 </div>
 @endsection
-
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const resetBtn = document.querySelector('button[type="reset"]');
-        const inputField = document.querySelector('input[name="word"]');
-
-        resetBtn.addEventListener('click', function () {
-            inputField.value = '';
-        });
-    });
-</script>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const resetBtn = document.querySelector('button[type="reset"]');
-        const inputField = document.querySelector('input[name="word"]');
-
-        resetBtn.addEventListener('click', function () {
-            inputField.value = '';
-        });
-    });
-</script>
-
